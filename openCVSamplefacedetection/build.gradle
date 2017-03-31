@@ -1,0 +1,76 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 14
+    buildToolsVersion "25.0.2"
+
+    defaultConfig {
+        applicationId "org.opencv.samples.facedetect"
+        minSdkVersion 8
+        targetSdkVersion 8
+        versionCode 1
+        versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                cppFlags ""
+            }
+        }
+
+        ndk {
+            moduleName "detection_based_tracker"
+            stl "stlport_static"
+            ldLibs "log"
+        }
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+        debug {
+            jniDebuggable true
+        }
+    }
+
+    sourceSets.main{
+        jni.srcDirs = []//禁止自带的ndk功能
+        jniLibs.srcDirs 'src/main/jniLibs'
+    }
+}
+
+task ndkBuild(type: Exec, description: 'Compile JNI source with NDK') {
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    def ndkDir = properties.getProperty('ndk.dir')
+
+    if (org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_WINDOWS)) {
+        commandLine "$ndkDir/ndk-build.cmd", '-C', file('src/main/jni').absolutePath}
+    else {
+        commandLine "$ndkDir/ndk-build", '-C', file('src/main/jni').absolutePath
+    }
+}
+
+tasks.withType(JavaCompile) {
+    compileTask -> compileTask.dependsOn ndkBuild
+}
+
+task ndkClean(type: Exec, description: 'Clean NDK Binaries') {
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    def ndkDir = properties.getProperty('ndk.dir')
+
+    if (org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_WINDOWS)) {
+        commandLine "$ndkDir/ndk-build.cmd",'clean', '-C', file('src/main/jni').absolutePath
+    } else {
+        commandLine "$ndkDir/ndk-build",'clean', '-C', file('src/main/jni').absolutePath
+    }
+}
+
+clean.dependsOn 'ndkClean'
+
+dependencies {
+    compile project(':openCVLibrary2411')
+    compile 'com.android.support:support-v4:19.1.0'
+}
